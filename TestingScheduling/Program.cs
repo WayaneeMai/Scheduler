@@ -10,6 +10,10 @@ namespace TestingScheduling
     {
         static void Main(string[] args)
         {
+	//ABCDEFG T
+
+
+
             //Step 1.Parameter Setting
             int MAX_ITERIATION = 20;
             int POPULATION_RANDOM = 0;
