@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using System.IO;
 using System.Linq;
 using System.Data;
 using System.Data.OleDb;
@@ -185,14 +184,9 @@ namespace TestingScheduling
                         string handlerType = Scheduled.GetHandlerNumber(RunningLots, MachineList[row].WorkOrderNumber).Substring(0, 3);
                         if (LotInformation.IsUPH_Exist(partNumber, MachineList[row].FTStep, testerType, handlerType) == true)//是否有維護UPH資料，以推算機台可用的時間
                         {
-                            //double machineProcessTime = Time_Caculator.CaculateTimeSpan(CurrentTime, MachineList[row].TrackInDate);//to record machine 已經執行的時間
-                            //int lotQuantity = Scheduled.GetLotQuantity(RunningLots, MachineList[row].WorkOrderNumber);
-                            //int temperature = Scheduled.GetTemperature(RunningLots, MachineList[row].WorkOrderNumber, MachineList[row].FTStep);
-                            //double uph = LotInformation.GetUPH(partNumber, MachineList[row].FTStep, testerType, handlerType);//get uph by device, step, tester and handler
-                            //double processingTime = JobAndOperation.CaculateProcessingTime(lotQuantity, uph)+LotInformation.Get_Heating_Cooling_Time(temperature);//processing time
-                            //machineAvailableTime = machineAvailableTime + processingTime - machineProcessTime;//Update machine available time equal to current time+processing time
-                            //machine availbale time = operation's plan out date
                             DateTime test_plan_out_date_operation = RunningLots.FirstOrDefault(x => x.WorkOrderNumber == MachineList[row].WorkOrderNumber && x.FTStep == MachineList[row].FTStep).CompletionDate;
+                            //1125更改進度
+                            
                             double test_plan_out_time = Time_Caculator.CaculateTimeSpan(CurrentTime, test_plan_out_date_operation);                            
                             machineAvailableTime = Math.Max(machineAvailableTime, test_plan_out_time);
                             //if (machineAvailableTime < 0)

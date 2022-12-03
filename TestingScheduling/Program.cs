@@ -10,34 +10,29 @@ namespace TestingScheduling
     {
         static void Main(string[] args)
         {
-	//ABCDEFG T
-
-
-
             //Step 1.Parameter Setting
-            int MAX_ITERIATION = 20;
+            int MAX_ITERIATION = 100;
             int POPULATION_RANDOM = 0;
-            int POPULATION_HEURISTICS = 30;
-            double CROSSOVER_RATE = 70;
-            double MUTATION_RATE = 40;
+            int POPULATION_HEURISTICS = 150;
+            double CROSSOVER_RATE = 90;
+            double MUTATION_RATE = 50;
             double STOP_CRITERIA_RATIO = 0.01;
-            int NOT_IMPROVEMENT_TIMES = 20;
+            int NOT_IMPROVEMENT_TIMES = 10;
             List<string> SCHEDULE_CUSTOMER_CODE=new List<string>() { "IA9" };//schedule any operation meet customer code
-            GeneticSetting.ObjectiveFunction objectiveFunction = GeneticSetting.ObjectiveFunction.TotalWeightedTardiness;//objective function
-            GeneticSetting.InitialSolution initialSolutionGenerateMethod = GeneticSetting.InitialSolution.ShortestProcess_Setup;
-            Chromosome.Data.currentTime = new DateTime(2022, 06, 06, 16, 00, 00);//schedule start time
+            GeneticSetting.ObjectiveFunction objectiveFunction = GeneticSetting.ObjectiveFunction.Makespan;//objective function
+            Chromosome.Data.currentTime = new DateTime(2022, 04, 07, 10, 00, 00);//schedule start time
             
             //Step 2.assign filePath
             string uphAddress= "UPH-A9-0705.xlsx";
             string sheet_uph = "Sheet1";
-            string machineListAddress= "MachineList_20220606.xlsx";
+            string machineListAddress= "MachineList_20220407.xlsx";
             string sheet_machine_list = "工作表1";
-            string wipListAddress= "Lot List & Job List(new)_2022060616_Rev0715.xlsx";
+            string wipListAddress= "Lot List & Job List(new)_2022040710.xlsx";
             string sheet_job_list = "JobList(new)";
             string sheet_lot_list = "LotList";
             string setupListAddress= "Microship setup time_0705.xlsx";
             string sheet_setup = "setup time";
-            string accessoryListAddress = "ACC系統資料0606.xlsx";//accessoryList
+            string accessoryListAddress = "ACC系統資料0407.xlsx";//accessoryList
             string sheet_require_accessory = "配件主檔定義";
             string sheet_acc_list= "AccList";
             string sheet_part_list= "PartList";
@@ -146,6 +141,18 @@ namespace TestingScheduling
                 SecondardResources=accessory.GetSecondardResources()
             };
 
+            GeneticSetting.InitialSolution initialSolutionGenerateMethod = GeneticSetting.InitialSolution.ShortestProcess_Setup;
+            switch (objectiveFunction)
+            {
+                case GeneticSetting.ObjectiveFunction.Makespan:
+                    initialSolutionGenerateMethod = GeneticSetting.InitialSolution.ReleaseTime;
+                    break;
+                case GeneticSetting.ObjectiveFunction.TotalWeightedTardiness:
+                    initialSolutionGenerateMethod = GeneticSetting.InitialSolution.EarlistDueDate;
+                    break;
+            }
+
+
             //Step 5 Genetic algorithm
             //step 5-1 parameter setting of genetic algorithm
             GeneticSetting geneticSetting = new GeneticSetting()
@@ -195,7 +202,8 @@ namespace TestingScheduling
             runningLots=runningLots.OrderBy(x => x.Tester).ThenBy(x=>x.TrackInDate).ThenBy(x=>x.WorkOrderNumber).ToList();//依據要求進行排序
             string time = DateTime.Now.ToString("MMddHHmm");
             scheduled.OutPutScheduleResult(runningLots, "ScheduleResult"+time, jobAndOperation);
-            Console.Write("Running time: " + stopwatch.ElapsedMilliseconds+" milliseconds");
+            Console.WriteLine("Running time: " + stopwatch.ElapsedMilliseconds+" milliseconds");
+            Console.WriteLine("chromosome initial solution rule: ");
         }
     }
 }

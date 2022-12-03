@@ -43,7 +43,10 @@ namespace TestingScheduling
         public enum InitialSolution
         {
             ShortestProcess_Setup,
-            ReleaseTime
+            ReleaseTime,
+            ShortestProcessingTime,
+            LargestWeight_SlackTime,
+            EarlistDueDate
         }
     }
 }

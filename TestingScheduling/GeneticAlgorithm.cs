@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Linq;
 using System.IO;
 
@@ -21,7 +20,6 @@ namespace TestingScheduling
         public List<int[]> population_operation=new List<int[]>();// initial population of operation sequence vector
         public List<int[]> population_machineSelection = new List<int[]>();// initial population of machine selection vector
         Random random;
-
 
         public GeneticAlgorithm(GeneticSetting Setting)//initialization of algorithm and parameter validation
         {
@@ -77,13 +75,13 @@ namespace TestingScheduling
                 case GeneticSetting.ObjectiveFunction.Makespan:
                     for (int num_chromosome = 0; num_chromosome < geneticSetting.num_population_by_heuristics; num_chromosome++)
                     {
-                        Chromosome chromosome = Copy.DeepClone(GenerateNewChromosome_makespan());
+                        Chromosome chromosome = GenerateNewChromosome_makespan();
                         CalculatingFitness(chromosome);
                         populations.Add(chromosome);
                     }
                     for (int num_chromosome = 0; num_chromosome < geneticSetting.num_population_by_random; num_chromosome++)
                     {
-                        Chromosome chromosome = Copy.DeepClone(GenerateNewChromosome_random());
+                        Chromosome chromosome = GenerateNewChromosome_random();
                         CalculatingFitness(chromosome);
                         populations.Add(chromosome);
                     }
@@ -91,15 +89,13 @@ namespace TestingScheduling
                 case GeneticSetting.ObjectiveFunction.TotalWeightedTardiness:                  
                     for (int num_chromosome = 0; num_chromosome < geneticSetting.num_population_by_heuristics; num_chromosome++)
                     {
-                        Chromosome chromosome = Copy.DeepClone(GenerateNewChromosome_makespan());
-                        chromosome.geneSetting = geneticSetting;
+                        Chromosome chromosome =GenerateNewChromosome_Tardiness() ;
                         CalculatingFitness(chromosome);
                         populations.Add(chromosome);
                     }
                     for (int num_chromosome = 0; num_chromosome < geneticSetting.num_population_by_random; num_chromosome++)
                     {
-                        Chromosome chromosome = Copy.DeepClone(GenerateNewChromosome_random());
-                        chromosome.geneSetting = geneticSetting; 
+                        Chromosome chromosome = GenerateNewChromosome_random();
                         CalculatingFitness(chromosome);
                         populations.Add(chromosome);
                     }
@@ -184,10 +180,10 @@ namespace TestingScheduling
                 }
                 else
                 {
+                    last_iteriation_best_fitness = best_solution.Fitness;
+                    Console.WriteLine("improvement ratio:" + ratio_improvement + "/improvement less than 0.01 for " + not_improvement_time + " times.");
                     not_improvement_time = 0;
                 }
-
-                last_iteriation_best_fitness = best_solution.Fitness;
                 iteriation++;//update generations
             } while (iteriation <= geneticSetting.max_iteriation);//stop criteria
         }
@@ -240,21 +236,63 @@ namespace TestingScheduling
                     List<Job_Operation_Index> ReleaseTime_Copy = new List<Job_Operation_Index>();
                     ReleaseTime_Copy = Copy.DeepClone(Chromosome.Data.Job_Operating_Data);
                     ReleaseTime_Copy = ReleaseTime_Copy.OrderBy(x => x.ReleaseTime_of_Job).ToList();
-                    foreach(Job_Operation_Index priority in ReleaseTime_Copy)
+                    int operationCount = 0;
+                    while (gene_count < list.Count())
+                    {
+                        List<Job_Operation_Index> removed_job = new List<Job_Operation_Index>();
+                        operationCount++;
+                        foreach(Job_Operation_Index priority in ReleaseTime_Copy)
+                        {
+                            var job_operation_count=list.Where(x=>x.JobIndex==priority.JobIndex).ToList().Count();
+                            if (operationCount > job_operation_count)
+                            {
+                                continue;
+                                removed_job.Add(priority);
+                            }
+                            sequence_operation[gene_count] = priority.JobIndex;
+                            machine_assignment[gene_count] = random.Next(1, 6);
+                            gene_count++;
+                        }
+                        foreach(Job_Operation_Index job in removed_job)
+                        {
+                            ReleaseTime_Copy.Remove(job);
+                        }
+                    }
+                    
+                    break;
+            }
+            return new Chromosome(sequence_operation, machine_assignment,environmentSetting,geneticSetting);
+        }
+
+        Chromosome GenerateNewChromosome_Tardiness()
+        {
+            int[] sequence_operation = new int[geneticSetting.num_genes];
+            int[] machine_assignment=new int[geneticSetting.num_genes];
+            int gene_count = 0;
+            List<Job_Operation_Index> list = new List<Job_Operation_Index>(genetic_space);
+            switch (geneticSetting.initial_method)
+            {
+                case GeneticSetting.InitialSolution.EarlistDueDate:
+                    List<Job_Operation_Index> dueTime_sorted=new List<Job_Operation_Index>();
+                    dueTime_sorted = Chromosome.Data.Job_Operating_Data;
+                    dueTime_sorted = dueTime_sorted.OrderBy(x => x.DueTime_of_Job).ThenBy(x => x.Weight).ToList();
+                    foreach(Job_Operation_Index priority in dueTime_sorted)
                     {
                         var target = list.Where(x => x.JobIndex == priority.JobIndex).ToList();
                         int jobCount = 0;
                         while (jobCount < target.Count())
                         {
-                            sequence_operation[gene_count] = priority.JobIndex;
-                            machine_assignment[gene_count] = random.Next(1, 5);
+                            sequence_operation[gene_count]=priority.JobIndex;
+                            machine_assignment[gene_count]=random.Next(1,6);
                             jobCount++;
                             gene_count++;
+
                         }
                     }
                     break;
+
             }
-            return new Chromosome(sequence_operation, machine_assignment,environmentSetting,geneticSetting);
+            return new Chromosome(sequence_operation, machine_assignment, environmentSetting, geneticSetting);
         }
 
 
