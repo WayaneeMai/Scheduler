@@ -134,11 +134,9 @@ namespace TestingScheduling
                     Chromosome child1;
                     Chromosome child2;
 
-                    //crossover rate
                     if (random.Next(1, 100) <= geneticSetting.crossover_probability)//crossover to generate offspring
                     {
                         List<Chromosome> childs=new List<Chromosome>(Crossover(mother,father));
-
                         child1 =Copy.DeepClone(childs[0]);
                         child2 = Copy.DeepClone(childs[1]);
                     }
@@ -202,7 +200,7 @@ namespace TestingScheduling
 
                 list.RemoveAt(index);
                 sequence_operation[column] = item;
-                machine_assignment[column] = random.Next(1, 5);
+                machine_assignment[column] = random.Next(1, 6);
                 column++;
             }
             return new Chromosome(sequence_operation, machine_assignment, environmentSetting,geneticSetting);
@@ -224,7 +222,7 @@ namespace TestingScheduling
                         if (target != null)
                         {
                             sequence_operation[gene_count] = target.JobIndex;
-                            machine_assignment[gene_count] = random.Next(1, 5);
+                            machine_assignment[gene_count] = random.Next(1, 6);
                             list.Remove(target);//already had assigned
                             gene_count++;
                         }
@@ -246,8 +244,8 @@ namespace TestingScheduling
                             var job_operation_count=list.Where(x=>x.JobIndex==priority.JobIndex).ToList().Count();
                             if (operationCount > job_operation_count)
                             {
-                                continue;
-                                removed_job.Add(priority);
+                                removed_job.Add(priority); 
+                                continue;                                
                             }
                             sequence_operation[gene_count] = priority.JobIndex;
                             machine_assignment[gene_count] = random.Next(1, 6);
@@ -257,8 +255,7 @@ namespace TestingScheduling
                         {
                             ReleaseTime_Copy.Remove(job);
                         }
-                    }
-                    
+                    }                   
                     break;
             }
             return new Chromosome(sequence_operation, machine_assignment,environmentSetting,geneticSetting);
@@ -290,7 +287,69 @@ namespace TestingScheduling
                         }
                     }
                     break;
+                case GeneticSetting.InitialSolution.ShortestProcessingTime:
+                    List<Processing> ProcessingTime_ikm_Sort = new List<Processing>();
+                    ProcessingTime_ikm_Sort= Copy.DeepClone(Chromosome.Data.ProcessingTime_ikm);
+                    ProcessingTime_ikm_Sort = ProcessingTime_ikm_Sort.OrderBy(x => x.ProcessingTime).ToList();
+                    foreach(Processing priority in ProcessingTime_ikm_Sort)
+                    {
+                        var target = list.FirstOrDefault(x => x.JobIndex == priority.JobIndex && x.OperationIndex == priority.OperationIndex);
+                        if (target != null)
+                        {
+                            sequence_operation[gene_count] = target.JobIndex;
+                            machine_assignment[gene_count] = random.Next(1, 5);
 
+                            list.Remove(target);
+                            gene_count++;
+                        }
+
+                        if (list.Count == 0)
+                        {
+                            break;
+                        }
+                    }
+                    break;
+
+                case GeneticSetting.InitialSolution.ShortestProcessingTime_Weighted:
+                    List<Processing> Weighted_ProcessingTime_ikm_Sort = new List<Processing>();
+                    for (int i = 0; i < genetic_space.Max(x => x.JobIndex); i++)
+                    {
+                        var Operation_search_test = Chromosome.Data.ProcessingTime_ikm.Where(x => x.JobIndex == i + 1).ToList();
+                        int operation_Index = Operation_search_test.Max(y => y.OperationIndex);
+                        for (int k = 0; k < operation_Index; k++)
+                        {
+                            double weight = Chromosome.Data.Job_Operating_Data.FirstOrDefault(x => x.JobIndex == i + 1).Weight;
+                            double processingTime = Chromosome.Data.ProcessingTime_ikm.FirstOrDefault(x => x.JobIndex == i + 1 && x.OperationIndex == k + 1).ProcessingTime;
+                            double temp = weight / processingTime;
+
+                            Weighted_ProcessingTime_ikm_Sort.Add(new Processing()
+                            {
+                                JobIndex = i + 1,
+                                OperationIndex = k+1,
+                                ProcessingTime = temp
+                            });
+                        }            
+                    }
+                    Weighted_ProcessingTime_ikm_Sort = Weighted_ProcessingTime_ikm_Sort.OrderBy(x => x.ProcessingTime).ToList();
+
+                    foreach (Processing priority in Weighted_ProcessingTime_ikm_Sort)
+                    {
+                        var target = list.FirstOrDefault(x => x.JobIndex == priority.JobIndex && x.OperationIndex == priority.OperationIndex);
+                        if (target != null)
+                        {
+                            sequence_operation[gene_count] = target.JobIndex;
+                            machine_assignment[gene_count] = random.Next(1, 5);
+
+                            list.Remove(target);
+                            gene_count++;
+                        }
+
+                        if (list.Count == 0)
+                        {
+                            break;
+                        }
+                    }
+                    break;                 
             }
             return new Chromosome(sequence_operation, machine_assignment, environmentSetting, geneticSetting);
         }

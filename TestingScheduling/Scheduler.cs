@@ -17,8 +17,10 @@ namespace TestingScheduling
         {
             List<Job_Operation_Index> jobLists = new List<Job_Operation_Index>();
             jobLists = ReadJobList(FileAddress, JobListSheetName, CustomerCode);
-            List<Job_Operation_Index> lotLists = ReadLotList(FileAddress, LotListSheetName, CustomerCode);
-            List<SmartTable_DueDate> smartTable_DueDates = ReadSmartTable(File_SmartTable_DueDate, SheetName_smartTable);
+            List<Job_Operation_Index> lotLists = new List<Job_Operation_Index>();
+            lotLists=ReadLotList(FileAddress, LotListSheetName, CustomerCode);
+            List<SmartTable_DueDate> smartTable_DueDates = new List<SmartTable_DueDate>();
+            smartTable_DueDates=ReadSmartTable(File_SmartTable_DueDate, SheetName_smartTable);
           
             foreach (Job_Operation_Index jobList in jobLists)//define weight and due date to each job in job lists
             {
@@ -128,7 +130,7 @@ namespace TestingScheduling
                         {
                             if (dr[44].ToString().Count() == 0)
                             {
-                                weight = 20;//預設值
+                                weight = 1;//預設值
                             }
                             else
                             {
@@ -137,7 +139,7 @@ namespace TestingScheduling
                         }
                         else
                         {
-                            weight = 20;//預設值
+                            weight = 1;//預設值
                         }
                         
                         var target = CustomerCode.FirstOrDefault(CustomerCode => CustomerCode == customerCode);
@@ -557,9 +559,7 @@ namespace TestingScheduling
         {
             unRunningLots.Add(new Job_Operation_Index()
             {
-                //JobIndex = Job,
-                //OperationIndex = Operation,
-                CustomerCode=WipMO.CustomerCode,//add 0502
+                CustomerCode=WipMO.CustomerCode,
                 WorkOrderNumber = WipMO.WorkOrderNumber,    
                 FTStep = WipMO.FTStep,
                 PartNumber = WipMO.PartNumber,
@@ -573,7 +573,6 @@ namespace TestingScheduling
                 Weight = WipMO.Weight,
                 DueDate = WipMO.DueDate
             });
-            //return unRunningLot;
         } 
 
         public void RemoveLotFromUnschedule(string MO,string FTStep)
@@ -692,7 +691,44 @@ namespace TestingScheduling
                 }
             }
         }
-   
+
+        public List<Job_Operation_Index> Set_Current_Machine_Process_Operation(Machine MachineType)//to set processing job, operation, device to machine m
+        {
+            List<Job_Operation_Index> machine_Jobs = new List<Job_Operation_Index>();
+            foreach (Job_Operation_Index lot in runningLots)
+            {
+                int testerIndex = MachineType.GetTesterIndex(lot.Tester);
+                int handlerIndex = MachineType.GetHandlerIndex(lot.Handler);
+                int machineIndex = MachineType.GetMachineTypeIndex(testerIndex, handlerIndex);
+
+                if (machineIndex > 0)
+                {
+                    var target_machine = machine_Jobs.FirstOrDefault(machine => machine.MachineTypeIndex == machineIndex);
+                    if (target_machine != null)
+                    {
+                        if (target_machine.CompletionDate < lot.CompletionDate)
+                        {
+                            target_machine.DeviceName = lot.DeviceName;
+                            target_machine.FTStep = lot.FTStep;
+                            target_machine.CompletionDate = lot.CompletionDate;
+                        }
+                    }
+                    else
+                    {                        
+                        machine_Jobs.Add(new Job_Operation_Index()//僅記錄最晚完成的作業
+                        {
+                            WorkOrderNumber = lot.WorkOrderNumber,
+                            DeviceName = lot.DeviceName,
+                            FTStep = lot.FTStep,
+                            MachineTypeIndex = machineIndex,
+                            CompletionDate = lot.CompletionDate,
+                            CurrentStatus = lot.CurrentStatus
+                        });
+                    }
+                }
+            }
+            return machine_Jobs;
+        }
 
         public string GetPartNumber(List<Job_Operation_Index> Lots, string ProcessingLot)
         {

@@ -46,7 +46,8 @@ namespace TestingScheduling
             ReleaseTime,
             ShortestProcessingTime,
             LargestWeight_SlackTime,
-            EarlistDueDate
+            EarlistDueDate,
+            ShortestProcessingTime_Weighted
         }
     }
 }

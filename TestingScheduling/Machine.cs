@@ -184,20 +184,38 @@ namespace TestingScheduling
                         string handlerType = Scheduled.GetHandlerNumber(RunningLots, MachineList[row].WorkOrderNumber).Substring(0, 3);
                         if (LotInformation.IsUPH_Exist(partNumber, MachineList[row].FTStep, testerType, handlerType) == true)//是否有維護UPH資料，以推算機台可用的時間
                         {
-                            DateTime test_plan_out_date_operation = RunningLots.FirstOrDefault(x => x.WorkOrderNumber == MachineList[row].WorkOrderNumber && x.FTStep == MachineList[row].FTStep).CompletionDate;
-                            //1125更改進度
-                            
-                            double test_plan_out_time = Time_Caculator.CaculateTimeSpan(CurrentTime, test_plan_out_date_operation);                            
-                            machineAvailableTime = Math.Max(machineAvailableTime, test_plan_out_time);
-                            //if (machineAvailableTime < 0)
-                                //machineAvailableTime = 0;
+                            DateTime test_plan_out_date_operation = RunningLots.FirstOrDefault(x => x.WorkOrderNumber == MachineList[row].WorkOrderNumber && x.FTStep == MachineList[row].FTStep).CompletionDate;                            
+                            double test_plan_out_time;
+                            if (MachineList[row].TrackInDate > test_plan_out_date_operation)
+                            {
+                                double machineProcessTime = Time_Caculator.CaculateTimeSpan(CurrentTime, MachineList[row].TrackInDate);//to record processed time to the machine
+                                int lotQuantity = Scheduled.GetLotQuantity(RunningLots, MachineList[row].WorkOrderNumber);
+                                int temperature = Scheduled.GetTemperature(RunningLots, MachineList[row].WorkOrderNumber, MachineList[row].FTStep);
+                                double uph = LotInformation.GetUPH(partNumber, MachineList[row].FTStep, testerType, handlerType);
+                                double processingTime = JobAndOperation.CaculateProcessingTime(lotQuantity, uph) + LotInformation.Get_Heating_Cooling_Time(temperature);
+                                machineAvailableTime = machineAvailableTime + processingTime - machineProcessTime;
+                            }
+                            else
+                            {
+                                if (test_plan_out_date_operation < CurrentTime)
+                                {
+                                    test_plan_out_time = 0;
+                                }
+                                else
+                                {
+                                    test_plan_out_time = Time_Caculator.CaculateTimeSpan(CurrentTime, test_plan_out_date_operation);    
+                                }
+                                machineAvailableTime = Math.Max(machineAvailableTime, test_plan_out_time);
+                            }
                         }
                         else
                         {
                             row++;
                             continue;//remove the machine
                         }
-                    }//i.e. machine status is "IDLE", "RUN" && TrackOut/ Abort or "SETUP", the availableTime is 0                   
+                    }//i.e. machine status is "IDLE", "RUN" && TrackOut/ Abort or "SETUP", the availableTime is 0
+                    if(machineAvailableTime<0)
+                        machineAvailableTime = 0;
                     SetTesterOrHandlerIndexNameAvailableTime(MachineList[row].ResourceType, resourceName, machineAvailableTime);
                 }
                 row++;
@@ -321,7 +339,14 @@ namespace TestingScheduling
         public int GetHandlerIndex(string ResourceName)
         {
             var target = handlers.FirstOrDefault(_ => _.ResourceName == ResourceName);
-            return target.ResourceIndex;
+            if (target != null)
+            {
+                return target.ResourceIndex;
+            }
+            else
+            {
+                return -1;
+            }
         }
 
         public string GetHandlerName(int HandlerIndex)
@@ -349,7 +374,31 @@ namespace TestingScheduling
             }      
         }
 
+        public int GetTesterIndex(string ResourceName)
+        {
+            var target = testers.FirstOrDefault(machine => machine.ResourceName == ResourceName);
+            if (target != null)
+            {
+                return target.ResourceIndex;
+            }
+            else
+            {
+                return -1;
+            }
+        }
 
+        public int GetMachineTypeIndex(int TesterIndex, int HandlerIndex)
+        {
+            var target_machine = machineTypes.FirstOrDefault(machine => machine.TesterIndex == TesterIndex && machine.HandlerIndex == HandlerIndex);
+            if (target_machine != null)
+            {
+                return target_machine.MachineTypeIndex;
+            }
+            else
+            {
+                return -1;
+            }
+        }
 
         public bool IsTesterDuplicated(string ResourceName)//檢查是否有重複
         {
@@ -465,7 +514,6 @@ namespace TestingScheduling
         /// 3.generate machine type, tester, handler and assign machine type index
         /// 4.define available tester and handler
         /// 5.generate tester and handler's availability
-        /// 
         /// </summary>
         /// <param name="MachineLists"></param>
         /// <param name="UnrunningLots"></param>
@@ -536,6 +584,20 @@ namespace TestingScheduling
                 }          
             }
         }
+
+        public void SetInitialStatusOfResource(List<Job_Operation_Index> InitialMachineProcessingOperations)
+        {
+            foreach (Job_Operation_Index process_operation in InitialMachineProcessingOperations)
+            {
+                int assigned_tester_index = Get_Resource_Index_By_Machine_Index(Machine_Type.Tester, process_operation.MachineTypeIndex);
+                int assigned_handler_index = Get_Resource_Index_By_Machine_Index(Machine_Type.Handler, process_operation.MachineTypeIndex);
+                var assigned_tester = testers.FirstOrDefault(machine => machine.ResourceIndex == assigned_tester_index);
+                var assigned_handler = handlers.FirstOrDefault(machine => machine.ResourceIndex == assigned_handler_index);
+                assigned_tester.MachineTypeIndex = process_operation.MachineTypeIndex;
+                assigned_handler.MachineTypeIndex = process_operation.MachineTypeIndex;
+            }
+        }
+
 
         public List<MachineType> Get_available_Machine_Job_Operation()
         {

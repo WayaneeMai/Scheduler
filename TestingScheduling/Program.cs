@@ -11,7 +11,7 @@ namespace TestingScheduling
         static void Main(string[] args)
         {
             //Step 1.Parameter Setting
-            int MAX_ITERIATION = 100;
+            int MAX_ITERIATION = 100;//原始參數100
             int POPULATION_RANDOM = 0;
             int POPULATION_HEURISTICS = 150;
             double CROSSOVER_RATE = 90;
@@ -19,7 +19,7 @@ namespace TestingScheduling
             double STOP_CRITERIA_RATIO = 0.01;
             int NOT_IMPROVEMENT_TIMES = 10;
             List<string> SCHEDULE_CUSTOMER_CODE=new List<string>() { "IA9" };//schedule any operation meet customer code
-            GeneticSetting.ObjectiveFunction objectiveFunction = GeneticSetting.ObjectiveFunction.Makespan;//objective function
+            GeneticSetting.ObjectiveFunction objectiveFunction = GeneticSetting.ObjectiveFunction.TotalWeightedTardiness;//objective function
             Chromosome.Data.currentTime = new DateTime(2022, 04, 07, 10, 00, 00);//schedule start time
             
             //Step 2.assign filePath
@@ -49,7 +49,7 @@ namespace TestingScheduling
             jobAndOperation.ReadXlsx(uphAddress,JobAndOperation.ProcessingDataType.UPH, sheet_uph);
             jobAndOperation.ReadXlsx(setupListAddress, JobAndOperation.ProcessingDataType.SetupTime, sheet_setup);
 
-            //step 3-2 To generate unrunning lot(未固定排程) and running lot(固定排程)
+            //step 3-2 To generate unrunning lot(未固定排程) sets and running lot(固定排程) sets
             switch (objectiveFunction)
             {
                 case GeneticSetting.ObjectiveFunction.Makespan:
@@ -89,8 +89,8 @@ namespace TestingScheduling
             accessory.SetAvailableAccessory_for_processingLot();//set available quantity of accessory to the processing(running) lot. 
             List<AvailableAccessory> availableQuantity_accessory = new List<AvailableAccessory>(accessory.GetAvailableAccessories());
 
-            //step 3-5 To validate the data in unrunning lots. And remove eligible machine type of job and operation from available_machineType_job_Operation lists if those operations
-            //missing setup time or uph. 
+            //step 3-5 To validate the data in unrunning lots. And remove eligible machine type of job and operation from available_machineType_job_Operation lists
+            //if those operations missing setup time or uph. 
             //Remove job from unrunning lots when there isn't any eligible machine to process.
             List<Resource> eligibleHandlers = new List<Resource>(machine.Get_Eligible_Handlers_List());//eligible and available machine of job and operation
             List<Resource> eligibleTesters = new List<Resource>(machine.Get_Elibible_Testers_List());//eligible and available
@@ -115,7 +115,9 @@ namespace TestingScheduling
             Chromosome.Data.Family_i = jobAndOperation.SetFamily_Of_Job(unrunningLots);// Family of job i 
             Chromosome.Data.SecondaryAccessoryRelation = accessory.GetSecondardResources();
             Chromosome.Data.Job_Operation = unrunningLots;
-            
+            Chromosome.Data.Machine_Status_RunningLots = scheduled.Set_Current_Machine_Process_Operation(machine);
+            machine.SetInitialStatusOfResource(Chromosome.Data.Machine_Status_RunningLots);
+
             //sum of processing time and setup time
             List<Processing> summation_processing_setupTime = new List<Processing>();
             summation_processing_setupTime = Copy.DeepClone(Chromosome.Data.ProcessingTime_ikm);
@@ -148,10 +150,9 @@ namespace TestingScheduling
                     initialSolutionGenerateMethod = GeneticSetting.InitialSolution.ReleaseTime;
                     break;
                 case GeneticSetting.ObjectiveFunction.TotalWeightedTardiness:
-                    initialSolutionGenerateMethod = GeneticSetting.InitialSolution.EarlistDueDate;
+                    initialSolutionGenerateMethod = GeneticSetting.InitialSolution.ShortestProcessingTime_Weighted;
                     break;
             }
-
 
             //Step 5 Genetic algorithm
             //step 5-1 parameter setting of genetic algorithm
@@ -186,7 +187,6 @@ namespace TestingScheduling
             //Step 5-3 Output scheduled best result
             var schedule_finish_Lots = geneticAlgorithm.Best.OutputSchedule(unrunningLots);
 
-
             //step 6 generating schedule report
             foreach (Job_Operation_Index lot in schedule_finish_Lots)
             {
@@ -202,8 +202,7 @@ namespace TestingScheduling
             runningLots=runningLots.OrderBy(x => x.Tester).ThenBy(x=>x.TrackInDate).ThenBy(x=>x.WorkOrderNumber).ToList();//依據要求進行排序
             string time = DateTime.Now.ToString("MMddHHmm");
             scheduled.OutPutScheduleResult(runningLots, "ScheduleResult"+time, jobAndOperation);
-            Console.WriteLine("Running time: " + stopwatch.ElapsedMilliseconds+" milliseconds");
-            Console.WriteLine("chromosome initial solution rule: ");
+            Console.WriteLine("Running time: " + stopwatch.ElapsedMilliseconds/1000+" seconds");
         }
     }
 }

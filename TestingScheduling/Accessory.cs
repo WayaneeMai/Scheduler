@@ -384,7 +384,7 @@ namespace TestingScheduling
             processing_accessory.Add(new Resource()
             {
                 ResourceIndex = accessoryIdex,
-                ResourceQuantity=Accessory.RequireQuantity,//fix 0719
+                ResourceQuantity=Accessory.RequireQuantity,
                 ResourceType=Accessory.ResourceType,
                 ResourceName=Accessory.ResourceName,
                 AvailableTime=availableTime
