@@ -298,6 +298,14 @@ namespace TestingScheduling
                     DateTime releaseDate = AllLot[row].TestReleaseDate;
                     if (AllLot[row].CurrentStatus == "Run") //if status is Run, it will not need to assign index.
                     {
+
+                        //增加如果缺少機台的話，必須輸出錯誤資訊
+                        if (AllLot[row].Tester.Count() < 1 || AllLot[row].Handler.Count() < 1)
+                        {
+                            Validate_Miss_Tester_Handler_for_Run(AllLot[row]);
+                            continue;
+                        }
+
                         SetSchedule(AllLot[row]);//set the schedule for processing job and operation                        
                         int nextRowIndex=row;//to update next operation of releasing date
                         if (row+1 < AllLot.Count())
@@ -323,6 +331,25 @@ namespace TestingScheduling
                 }
                 row++;                
             } while (row < AllLot.Count());
+        }
+
+
+        public void Validate_Miss_Tester_Handler_for_Run(Job_Operation_Index ValidateLot)
+        {
+            if (ValidateLot.Tester.Count() < 1 && ValidateLot.Handler.Count() < 1)
+            {
+                ValidateLot.CurrentStatus = "Missing tester and handler machine";
+                SetSchedule(ValidateLot);//set the lot in runningLots sets and mark with notes
+            }else if(ValidateLot.Tester.Count() < 1)
+            {
+                ValidateLot.CurrentStatus = "Missing tester machine";
+                SetSchedule(ValidateLot);//set the lot in runningLots sets and mark with notes
+            }
+            else
+            {
+                ValidateLot.CurrentStatus = "Missing handler machine";
+                SetSchedule(ValidateLot);//set the lot in runningLots sets and mark with notes
+            }
         }
 
 
@@ -628,7 +655,7 @@ namespace TestingScheduling
                     }
                     else
                     {
-                        if (operation.Tester != null || operation.Handler != null)
+                        if ((operation.Tester != null&&operation.Tester.Count()>3 ) && (operation.Handler != null&&operation.Handler.Count()>3))
                         {
                             uph = Lots.GetUPH(operation.PartNumber, operation.FTStep, operation.Tester.Substring(0, 3), operation.Handler.Substring(0, 3));
                             processingTime = Math.Round(operation.LotQuantity / uph + Lots.Get_Heating_Cooling_Time(operation.Temperature) / 60, 1);
@@ -806,13 +833,13 @@ namespace TestingScheduling
         public string GetTesterNumber(List<Job_Operation_Index> Lots, string ProcessingLot)
         {
             var target = Lots.FirstOrDefault(_ => _.WorkOrderNumber == ProcessingLot);
-            if (target != null)
+            if (target != null&&target.Tester.Count()>1)
             {
                 return target.Tester;
             }
             else
             {
-                return "job list 無該筆作業";
+                return "data missing";
             }
             
         }
@@ -820,13 +847,13 @@ namespace TestingScheduling
         public string GetHandlerNumber(List<Job_Operation_Index> Lots, string ProcessingLot)
         {
             var target = Lots.FirstOrDefault(_ => _.WorkOrderNumber == ProcessingLot);
-            if (target != null)
+            if (target != null&& target.Handler.Count()>1)
             {
                 return target.Handler;
             }
             else
             {
-                return "job list 無該筆作業";
+                return "data missing";
             }
         }
 

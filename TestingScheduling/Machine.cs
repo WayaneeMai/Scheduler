@@ -178,10 +178,18 @@ namespace TestingScheduling
                             machineAvailableTime = Time_Caculator.CaculateTimeSpan(CurrentTime, MachineList[row].EstimationAvailableTime);                      
                     }
                     else if (MachineList[row].ResourceStatus == "RUN" && MachineList[row].ResourceSubStatus == "TrackIn" && MachineList[row].WorkOrderNumber != null)//i.e. machine status is "RUN" and lot is not empty
-                    {                        
+                    {
+
                         string partNumber = Scheduled.GetPartNumber(RunningLots, MachineList[row].WorkOrderNumber);
-                        string testerType = Scheduled.GetTesterNumber(RunningLots, MachineList[row].WorkOrderNumber).Substring(0, 3);
-                        string handlerType = Scheduled.GetHandlerNumber(RunningLots, MachineList[row].WorkOrderNumber).Substring(0, 3);
+                        string testerName = Scheduled.GetTesterNumber(RunningLots, MachineList[row].WorkOrderNumber);
+                        string handlerName= Scheduled.GetHandlerNumber(RunningLots, MachineList[row].WorkOrderNumber);
+                        if(testerName=="data missing"||handlerName=="data missing")
+                        {
+                            row++;
+                            continue;//remove the machine
+                        }
+                        string testerType = testerName.Substring(0, 3);
+                        string handlerType = handlerName.Substring(0, 3);
                         if (LotInformation.IsUPH_Exist(partNumber, MachineList[row].FTStep, testerType, handlerType) == true)//是否有維護UPH資料，以推算機台可用的時間
                         {
                             DateTime test_plan_out_date_operation = RunningLots.FirstOrDefault(x => x.WorkOrderNumber == MachineList[row].WorkOrderNumber && x.FTStep == MachineList[row].FTStep).CompletionDate;                            

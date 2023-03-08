@@ -11,7 +11,7 @@ namespace TestingScheduling
         static void Main(string[] args)
         {
             //Step 1.Parameter Setting
-            int MAX_ITERIATION = 100;//原始參數100
+            int MAX_ITERIATION = 1;//原始參數100
             int POPULATION_RANDOM = 0;
             int POPULATION_HEURISTICS = 150;
             double CROSSOVER_RATE = 90;
@@ -20,24 +20,24 @@ namespace TestingScheduling
             int NOT_IMPROVEMENT_TIMES = 10;
             List<string> SCHEDULE_CUSTOMER_CODE=new List<string>() { "IA9" };//schedule any operation meet customer code
             GeneticSetting.ObjectiveFunction objectiveFunction = GeneticSetting.ObjectiveFunction.TotalWeightedTardiness;//objective function
-            Chromosome.Data.currentTime = new DateTime(2022, 04, 07, 10, 00, 00);//schedule start time
+            Chromosome.Data.currentTime = new DateTime(2023, 03, 06, 10, 00, 00);//schedule start time
             
             //Step 2.assign filePath
-            string uphAddress= "UPH-A9-0705.xlsx";
+            string uphAddress= "UPH-A9_validate0307.xlsx";
             string sheet_uph = "Sheet1";
-            string machineListAddress= "MachineList_20220407.xlsx";
+            string machineListAddress= "MachineList_validate0307.xlsx";
             string sheet_machine_list = "工作表1";
-            string wipListAddress= "Lot List & Job List(new)_2022040710.xlsx";
+            string wipListAddress= "Lot List & Job List(new)_validate0307.xlsx";
             string sheet_job_list = "JobList(new)";
             string sheet_lot_list = "LotList";
-            string setupListAddress= "Microship setup time_0705.xlsx";
+            string setupListAddress= "Microship setup time_validate0307.xlsx";
             string sheet_setup = "setup time";
-            string accessoryListAddress = "ACC系統資料0407.xlsx";//accessoryList
-            string sheet_require_accessory = "配件主檔定義";
+            string accessoryListAddress = "ACC系統資料_validate0307.xlsx";//accessoryList
+            string sheet_require_accessory = "AccMaster";
             string sheet_acc_list= "AccList";
             string sheet_part_list= "PartList";
             string sec_acc_sheet_name= "替代料";
-            string smart_table_dueDate= "SmartTable 0429.xlsx";
+            string smart_table_dueDate= "SmartTable_validate0307.xlsx";
             string sheet_table_dueDate= "ProcessTime";
 
             //Step 3. Scheduling enviroment initialization            
