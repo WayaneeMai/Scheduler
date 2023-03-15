@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
-
+using System.Diagnostics;
 
 namespace TestingScheduling
 {
@@ -89,6 +89,7 @@ namespace TestingScheduling
                 case GeneticSetting.ObjectiveFunction.TotalWeightedTardiness:                  
                     for (int num_chromosome = 0; num_chromosome < geneticSetting.num_population_by_heuristics; num_chromosome++)
                     {
+
                         Chromosome chromosome =GenerateNewChromosome_Tardiness() ;
                         CalculatingFitness(chromosome);
                         populations.Add(chromosome);
@@ -117,6 +118,7 @@ namespace TestingScheduling
 
             do
             {
+                List<Chromosome> offspring=new List<Chromosome>();
                 for (int chromosome = 0; chromosome < geneticSetting.total_num_population; chromosome=chromosome+2)//to generate n's chromosomes
                 {
                     int selectedChromosome1 = TournamentSelection();//select two parents for crossover and mutating by ussing binary tournament
@@ -145,18 +147,20 @@ namespace TestingScheduling
                         child1 = Copy.DeepClone(mother);
                         child2 = Copy.DeepClone(father);
                     }
-                    
+
                     if (random.Next(1, 100) <= geneticSetting.mutation_probability)
                     {
                         TwoPointMutation(child1);//mutation
                         TwoPointMutation(child2);
                     }
-                    
-                    populations.Add(child1);
-                    populations.Add(child2);
+
+                    //populations.Add(child1);
+                    //populations.Add(child2);
+                    offspring.Add(child1);
+                    offspring.Add(child2);
+
                     child1.geneSetting = geneticSetting;
                     child2.geneSetting = geneticSetting;
-
                     CalculatingFitness(child1);////measuring the fitness of each chromosome in the population and update best soluting
                     CalculatingFitness(child2);
                 }
@@ -164,6 +168,8 @@ namespace TestingScheduling
                 //PrintChromosome("Chromosome iteriation"+ iteriation); 
 
                 //update population
+                populations.AddRange(offspring);//0314
+                offspring.Clear();//0314
                 populations = populations.OrderBy(chromosome => chromosome.Fitness).ToList();
                 int remove_num=populations.Count()-geneticSetting.total_num_population;
                 populations.RemoveRange(geneticSetting.total_num_population, remove_num);
@@ -314,8 +320,7 @@ namespace TestingScheduling
                     List<Processing> Weighted_ProcessingTime_ikm_Sort = new List<Processing>();
                     for (int i = 0; i < genetic_space.Max(x => x.JobIndex); i++)
                     {
-                        var Operation_search_test = Chromosome.Data.ProcessingTime_ikm.Where(x => x.JobIndex == i + 1).ToList();
-                        int operation_Index = Operation_search_test.Max(y => y.OperationIndex);
+                        int operation_Index = Chromosome.Data.Job_Operation.Where(x => x.JobIndex == i + 1).Max(y=>y.OperationIndex);
                         for (int k = 0; k < operation_Index; k++)
                         {
                             double weight = Chromosome.Data.Job_Operating_Data.FirstOrDefault(x => x.JobIndex == i + 1).Weight;
@@ -397,7 +402,7 @@ namespace TestingScheduling
             Chromosome child2 = new Chromosome(Parent2.sequence_operation, Parent2.machine_assignment, environmentSetting,geneticSetting);
             int crossover_point1 = random.Next(0, geneticSetting.num_genes / 2 + 1);
             int crossover_point2 = crossover_point1 + random.Next(0, geneticSetting.num_genes / 2);
-
+          
             child1.machine_assignment = TwoPointCrossover(Parent1, Parent2, crossover_point1, crossover_point2);
             child2.machine_assignment = TwoPointCrossover(Parent2, Parent1, crossover_point1, crossover_point2);
 
@@ -409,7 +414,6 @@ namespace TestingScheduling
 
             child1.sequence_operation = JobPrecedenceCorssover(Parent1, Parent2, set1, set2);
             child2.sequence_operation= JobPrecedenceCorssover(Parent2, Parent1, set2, set1);
-
 
             childs.Add(child1);
             childs.Add(child2);

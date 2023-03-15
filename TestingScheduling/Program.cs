@@ -20,7 +20,7 @@ namespace TestingScheduling
             int NOT_IMPROVEMENT_TIMES = 10;
             List<string> SCHEDULE_CUSTOMER_CODE=new List<string>() { "IA9" };//schedule any operation meet customer code
             GeneticSetting.ObjectiveFunction objectiveFunction = GeneticSetting.ObjectiveFunction.TotalWeightedTardiness;//objective function
-            Chromosome.Data.currentTime = new DateTime(2023, 03, 06, 10, 00, 00);//schedule start time
+            Chromosome.Data.currentTime = new DateTime(2023, 03, 07, 10, 00, 00);//schedule start time
             
             //Step 2.assign filePath
             string uphAddress= "UPH-A9_validate0307.xlsx";
@@ -92,9 +92,13 @@ namespace TestingScheduling
             //step 3-5 To validate the data in unrunning lots. And remove eligible machine type of job and operation from available_machineType_job_Operation lists
             //if those operations missing setup time or uph. 
             //Remove job from unrunning lots when there isn't any eligible machine to process.
-            List<Resource> eligibleHandlers = new List<Resource>(machine.Get_Eligible_Handlers_List());//eligible and available machine of job and operation
-            List<Resource> eligibleTesters = new List<Resource>(machine.Get_Elibible_Testers_List());//eligible and available
+            List<Resource> eligibleHandlers = new List<Resource>();//eligible and available machine of job and operation        
+            eligibleHandlers = eligibleHandlers = machine.Get_Eligible_Handlers_List();
+            List<Resource> eligibleTesters = new List<Resource>();//eligible and available
+            eligibleTesters = machine.Get_Elibible_Testers_List();
+
             scheduled.ValidateUnrunningLot(ref machine, eligibleTesters, eligibleHandlers, jobAndOperation,accessory);
+
 
             //step 3-6 To set job and operation index as input of scheduling
             unrunningLots =scheduled.Set_Job_Operation_Index();

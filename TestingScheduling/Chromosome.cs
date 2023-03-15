@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
+using System.Diagnostics;
 
 namespace TestingScheduling
 {
@@ -143,14 +144,14 @@ namespace TestingScheduling
         }
 
         public double Tardiness_Decoding_FirstServe()
-        {
+        {         
             List<Job_Operation_Index> last_job_operation = new List<Job_Operation_Index>();//machine m's last operation
             last_job_operation = Copy.DeepClone(Chromosome.Data.Machine_Status_RunningLots);
 
             for (int i = 0; i < sequence_operation.Length; i++)//to get the gene from operation permutation vector
             {
                 int selectedJob = sequence_operation[i];//scheduled job and operation
-                int selectedOperation = scheduled_Job.Where(scheduled_Job => scheduled_Job == selectedJob).ToList().Count() + 1;
+                int selectedOperation = scheduled_Job.Where(scheduled_Job => scheduled_Job == selectedJob).Count() + 1;
 
                 //to get the gene of assignment from machine assignment vector
                 var machine_assignment_index = Chromosome.Data.Job_Operation.FindIndex(x => x.JobIndex == selectedJob && x.OperationIndex == selectedOperation);
@@ -164,10 +165,9 @@ namespace TestingScheduling
 
                 //assign the operation to earlist available machine type.
                 //MachineType selected_Machine = candidate_machines[select_machine_index];
-                int selectedTester = environmentSetting.MachineTypes.FirstOrDefault(machine => machine.MachineTypeIndex == select_machine_index).TesterIndex;//assignment machine type's tester index
-                int selectedHandler = environmentSetting.MachineTypes.FirstOrDefault(machine => machine.MachineTypeIndex == select_machine_index).HandlerIndex;//assignment machine type's handler index
-                Resource available_tester = environmentSetting.Testers_availablity.FirstOrDefault(tester => tester.ResourceIndex == selectedTester);
-                Resource available_handler = environmentSetting.Handlers_availablity.FirstOrDefault(handler => handler.ResourceIndex == selectedHandler);
+                MachineType selectedMachine = environmentSetting.MachineTypes.FirstOrDefault(machine => machine.MachineTypeIndex == select_machine_index);//assignment machine type index
+                Resource available_tester = environmentSetting.Testers_availablity.FirstOrDefault(tester => tester.ResourceIndex == selectedMachine.TesterIndex);
+                Resource available_handler = environmentSetting.Handlers_availablity.FirstOrDefault(handler => handler.ResourceIndex == selectedMachine.HandlerIndex);
                 double machineAvailableTime = Math.Max(available_tester.AvailableTime, available_handler.AvailableTime);//available time of machine will be maximun value of tester and handler available time.
 
                 //to get required accessory of job and operation
@@ -184,7 +184,7 @@ namespace TestingScheduling
                 double releaseTime = Chromosome.Data.Job_Operating_Data.FirstOrDefault(_ => _.JobIndex == selectedJob).ReleaseTime_of_Job;
 
                 //start setup time will be complement time of last operation, release time, available time of machine and available time accessory
-                double start_setup_time = Math.Max(available_time_accessory, Math.Max(machineAvailableTime, Math.Max(releaseTime, precedence_operation_finishTime)));
+                double start_setup_time = Math.Max(available_time_accessory, Math.Max(machineAvailableTime, Math.Max(releaseTime, precedence_operation_finishTime)));               
                 double setup_time = GetSetupTime(selectedJob, selectedOperation, select_machine_index, last_job_operation);
                 double start_processing_time = start_setup_time + setup_time; //start processing time equal to start setup time plus setup time              
                 double processing_time = Chromosome.Data.ProcessingTime_ikm.FirstOrDefault(operation => operation.JobIndex == selectedJob && operation.OperationIndex == selectedOperation
@@ -216,7 +216,7 @@ namespace TestingScheduling
                     });
                 }
                 //update available time of accessory, tester and handler. the available time will be completion of the job and operation
-                UpdateStatusOfResource(select_machine_index, selectedTester, selectedHandler, finish_time, assignment_resource);
+                UpdateStatusOfResource(select_machine_index, selectedMachine.TesterIndex, selectedMachine.HandlerIndex, finish_time, assignment_resource);
 
                 //Add to the scheduled sets once scheduled
                 scheduled_Job.Add(selectedJob);
@@ -234,7 +234,7 @@ namespace TestingScheduling
 
         public double GetTardiness(Job_Operation_Index Job)
         {
-            double completion_time_job = finishTime.Where(operation => operation.JobIndex == Job.JobIndex).ToList().Max(x => x.Time);
+            double completion_time_job = finishTime.Where(operation => operation.JobIndex == Job.JobIndex).Max(x => x.Time);
             double tardiness=Math.Max((completion_time_job-Job.DueTime_of_Job),0);
             return tardiness;
         }
@@ -275,8 +275,15 @@ namespace TestingScheduling
             var index_handler = environmentSetting.Handlers_availablity.FindIndex(handler => handler.ResourceIndex == SelectedHandler);
             environmentSetting.Handlers_availablity[index_handler].AvailableTime = FinishTime;
             environmentSetting.Handlers_availablity[index_handler].MachineTypeIndex = Machine_Index;
-            var index_machine_type = environmentSetting.MachineTypes.FindIndex(machine => machine.MachineTypeIndex == Machine_Index);
-            environmentSetting.MachineTypes[index_machine_type].AvailableTime = FinishTime;
+
+            //增加尋找目前所有可用的機器組合
+            var machines = environmentSetting.MachineTypes.Where(machine => machine.TesterIndex == SelectedTester || machine.HandlerIndex == SelectedHandler);
+            foreach (var machine in machines)
+            {
+                machine.AvailableTime = FinishTime;
+            }
+            //var index_machine_type = environmentSetting.MachineTypes.FindIndex(machine => machine.MachineTypeIndex == Machine_Index);
+            //environmentSetting.MachineTypes[index_machine_type].AvailableTime = FinishTime;
 
             //update available time of accessory
             foreach (AvailableAccessory accessory in Assignment_Accessories)
@@ -305,7 +312,7 @@ namespace TestingScheduling
                 if (target_secondary != null)
                 {
                     secondaryIndex = target_secondary.SecondardResourceIndex;
-                    var sec_accessories = environmentSetting.AvailableQuantity_accessory.Where(available_accessory => available_accessory.Accessory_Type_Index == secondaryIndex).ToList();
+                    var sec_accessories = environmentSetting.AvailableQuantity_accessory.Where(available_accessory => available_accessory.Accessory_Type_Index == secondaryIndex);
                     foreach (AvailableAccessory sec_accessory in sec_accessories)
                     {
                         candidate_accessory.Add(sec_accessory);
@@ -336,13 +343,9 @@ namespace TestingScheduling
 
         public double Get_precedence_operation_finishTime(int Job)
         {
-            int predecence_operation = scheduled_Job.Where(scheduled_Job => scheduled_Job == Job).ToList().Count;//last operation of same job
-            double precedence_operation_finishTime;
-            if (predecence_operation == 0)
-            {
-                precedence_operation_finishTime = 0;
-            }
-            else
+            int predecence_operation = scheduled_Job.Where(scheduled_Job => scheduled_Job == Job).Count();//last operation of same job
+            double precedence_operation_finishTime=0;
+            if (predecence_operation >= 1)
             {
                 precedence_operation_finishTime = finishTime.FirstOrDefault(_ => _.JobIndex == Job && _.OperationIndex == predecence_operation).Time;
             }
@@ -353,22 +356,19 @@ namespace TestingScheduling
         {
             double setupTime = Chromosome.Data.SetupTime_ikm.FirstOrDefault(operation => operation.JobIndex == Job && operation.OperationIndex == Operation
                     && operation.MachineTypeIndex == Machine_Index).SetupTime;
-            var last_job = Last_Job_Operation.FirstOrDefault(machine => machine.MachineTypeIndex == Machine_Index);
+            Job_Operation_Index last_job = Last_Job_Operation.FirstOrDefault(machine => machine.MachineTypeIndex == Machine_Index);
             //int family_selected_job = Chromosome.Data.Family_i.FirstOrDefault(job => job.JobIndex == Job).FamilyIndex;
             string device_selected_job = Chromosome.Data.Family_i.FirstOrDefault(job => job.JobIndex == Job).DeviceName;
             string step = Chromosome.Data.Job_Operation.FirstOrDefault(operation => operation.JobIndex == Job && operation.OperationIndex == Operation).FTStep;
-            if (last_job != null)
+            if (last_job != null && last_job.DeviceName == device_selected_job && step == last_job.FTStep)
             {
-                int tester = environmentSetting.MachineTypes.FirstOrDefault(_ => _.MachineTypeIndex == Machine_Index).TesterIndex;
-                int handler = environmentSetting.MachineTypes.FirstOrDefault(_ => _.MachineTypeIndex == Machine_Index).HandlerIndex;
-                int testerBelongMachineType = environmentSetting.Testers_availablity.FirstOrDefault(_ => _.ResourceIndex == tester).MachineTypeIndex;
-                int handlerBelongMachineType = environmentSetting.Handlers_availablity.FirstOrDefault(_ => _.ResourceIndex == handler).MachineTypeIndex;
+                int tester = environmentSetting.MachineTypes.FirstOrDefault(machine => machine.MachineTypeIndex == Machine_Index).TesterIndex;
+                int handler = environmentSetting.MachineTypes.FirstOrDefault(machine => machine.MachineTypeIndex == Machine_Index).HandlerIndex;
+                int testerBelongMachineType = environmentSetting.Testers_availablity.FirstOrDefault(machine => machine.ResourceIndex == tester).MachineTypeIndex;
+                int handlerBelongMachineType = environmentSetting.Handlers_availablity.FirstOrDefault(machine => machine.ResourceIndex == handler).MachineTypeIndex;
                 if (testerBelongMachineType == Machine_Index && handlerBelongMachineType == Machine_Index)
                 {
-                    if (last_job.DeviceName == device_selected_job && step == last_job.FTStep)
-                    {
-                        setupTime = 0;
-                    }
+                    setupTime = 0;                   
                 }
             }
             return setupTime;
@@ -376,8 +376,6 @@ namespace TestingScheduling
 
         public int GetCorrespondMachine(MachineSelectionRule SelectionRule, int Job, int Operation, List<Job_Operation_Index> PreviousOperation)
         {
-            List<Processing> target_machines = new List<Processing>();
-            List<MachineType> machineTypes = new List<MachineType>();
             int machineIndex;
             switch (SelectionRule)
             {
@@ -425,8 +423,12 @@ namespace TestingScheduling
         public int SelectionRule_EarlistAvailableMachine(int Job,int Operation)
         {
             List<Processing> target_machines=Chromosome.Data.ProcessingTime_ikm.Where(x=>x.JobIndex==Job&&x.OperationIndex==Operation).ToList();
+            /*
             int select_machine_index = IndexOfMin_Available(target_machines);
             return target_machines[select_machine_index].MachineTypeIndex;
+            */
+
+            return IndexOfMin_Available(target_machines);
         }
         
 
@@ -451,15 +453,13 @@ namespace TestingScheduling
         public int SelectionRule_EarlistCompletionTime(int Job,int Operation, List<Job_Operation_Index> PreviousOperation)
         {
             List<Processing> target_earlist_completion = new List<Processing>();
-            var target_machine = Chromosome.Data.ProcessingTime_ikm.Where(operation => operation.JobIndex == Job && operation.OperationIndex == Operation).ToList();
-            foreach (Processing machine in target_machine)
+            var target_machines = Chromosome.Data.ProcessingTime_ikm.Where(operation => operation.JobIndex == Job && operation.OperationIndex == Operation);
+            foreach (Processing machine in target_machines)
             {
-                double completionTime;
-                var processingTime = Chromosome.Data.ProcessingTime_ikm.FirstOrDefault(operation => operation.JobIndex == Job && operation.OperationIndex == Operation &&
-                  operation.MachineTypeIndex == machine.MachineTypeIndex).ProcessingTime;
+                double processingTime = target_machines.FirstOrDefault(operation => operation.MachineTypeIndex == machine.MachineTypeIndex).ProcessingTime;
                 var setupTime = GetSetupTime(Job, Operation, machine.MachineTypeIndex, PreviousOperation);
                 double machine_available_time = machine.AvailableTime;
-                completionTime = machine_available_time + processingTime + setupTime;
+                double completionTime = machine_available_time + processingTime + setupTime;
                 target_earlist_completion.Add(new Processing()
                 {
                     MachineTypeIndex = machine.MachineTypeIndex,
@@ -472,30 +472,116 @@ namespace TestingScheduling
 
         public int SelectionRule_ShortestProcessingTime(int Job, int Operation)
         {
+            /*
             var target_processingTime = Chromosome.Data.ProcessingTime_ikm.Where(_ => _.JobIndex == Job && _.OperationIndex == Operation).Min(_ => _.ProcessingTime);
             List<Processing> target_machines = Chromosome.Data.ProcessingTime_ikm.Where(x => x.JobIndex == Job && x.OperationIndex == Operation && x.ProcessingTime == target_processingTime).ToList();
             int select_machine_index = IndexOfMin_Available(target_machines);
             return target_machines[select_machine_index].MachineTypeIndex;
+            */
+            List<Processing> target_machines = new List<Processing>();
+            target_machines = Get_Shortest_Processing_Time_Machines(Job, Operation);
+        
+            return IndexOfMin_Available(target_machines);
+        }
+
+
+        public List<Processing> Get_Shortest_Processing_Time_Machines(int Job, int Operation)
+        {
+            List<Processing> ProcessingTime_Job_Operation = new List<Processing>();
+            ProcessingTime_Job_Operation=Chromosome.Data.ProcessingTime_ikm.Where(x => x.JobIndex == Job & x.OperationIndex == Operation).ToList();
+            double minProcessingTime = ProcessingTime_Job_Operation[0].ProcessingTime;
+            List<Processing> results = new List<Processing>();
+            for (int i = 0; i < ProcessingTime_Job_Operation.Count(); i++)
+            {
+                if (ProcessingTime_Job_Operation[i].ProcessingTime < minProcessingTime)
+                {
+                    minProcessingTime = ProcessingTime_Job_Operation[i].ProcessingTime;
+                    results.Clear();
+                    results.Add(ProcessingTime_Job_Operation[i]);
+                }
+                else if (ProcessingTime_Job_Operation[i].ProcessingTime == minProcessingTime)
+                {
+                    results.Add(ProcessingTime_Job_Operation[i]);
+                }
+            }
+            return results;
         }
 
         public int SelectionRule_ShortestSetupTime(int Job, int Operation)
         {
+            /*
             var target_setupTime = Chromosome.Data.SetupTime_ikm.Where(_ => _.JobIndex == Job && _.OperationIndex == Operation).Min(_ => _.SetupTime);
             List<Processing> target_machines = Chromosome.Data.SetupTime_ikm.Where(_ => _.JobIndex == Job
             && _.OperationIndex == Operation && _.SetupTime == target_setupTime).ToList();
             int select_machine_index = IndexOfMin_Available(target_machines);
             return target_machines[select_machine_index].MachineTypeIndex;
+            */
+
+            List<Processing> target_machines = new List<Processing>();
+            target_machines=Get_Shortest_Setup_Time_Machines(Job, Operation);
+            return IndexOfMin_Available(target_machines);
+        }
+
+        public List<Processing> Get_Shortest_Setup_Time_Machines(int Job,int Operation)
+        {
+            List<Processing> SetupTime_Job_Operation = new List<Processing>();
+            SetupTime_Job_Operation = Chromosome.Data.SetupTime_ikm.Where(x => x.JobIndex == Job & x.OperationIndex == Operation).ToList();
+            double minSetupTime = SetupTime_Job_Operation[0].SetupTime;
+            List<Processing> results = new List<Processing>();
+            for (int i = 0; i < SetupTime_Job_Operation.Count(); i++)
+            {
+                if (SetupTime_Job_Operation[i].SetupTime < minSetupTime)
+                {
+                    minSetupTime = SetupTime_Job_Operation[i].SetupTime;
+                    results.Clear();
+                    results.Add(SetupTime_Job_Operation[i]);
+                }
+                else if (SetupTime_Job_Operation[i].SetupTime == minSetupTime)
+                {
+                    results.Add(SetupTime_Job_Operation[i]);
+                }
+            }
+            return results;
         }
 
         public int SelectionRule_ShortestSetup_ProcessingTime(int Job, int Operation)
         {
+            /*
             var target_processing_setupTime = Chromosome.Data.Sum_ProcessingTime_SetupTime_ikm.Where(_ => _.JobIndex == Job && _.OperationIndex == Operation).Min(_ => _.ProcessingTime);
             List<Processing> target_machines = Chromosome.Data.Sum_ProcessingTime_SetupTime_ikm.
                 Where(x => x.JobIndex == Job && x.OperationIndex == Operation && x.ProcessingTime == target_processing_setupTime).ToList();
             int select_machine_index = IndexOfMin_Available(target_machines);
 
             return target_machines[select_machine_index].MachineTypeIndex;
+            */
+            List<Processing> target_machines = new List<Processing>();
+            target_machines = Get_Shortest_Setup_Processing_Time_Machines(Job, Operation);
+            return IndexOfMin_Available(target_machines);
+
         }
+
+        public List<Processing> Get_Shortest_Setup_Processing_Time_Machines(int Job,int Operation)
+        {
+            List<Processing> Setup_ProcessingTime_Job_Operation = new List<Processing>();
+            Setup_ProcessingTime_Job_Operation = Chromosome.Data.Sum_ProcessingTime_SetupTime_ikm.Where(x => x.JobIndex == Job && x.OperationIndex == Operation).ToList();
+            double minProcessing_SetupTime = Setup_ProcessingTime_Job_Operation[0].ProcessingTime;
+            List<Processing> results = new List<Processing>();
+            for (int i = 0; i < Setup_ProcessingTime_Job_Operation.Count(); i++)
+            {
+                if (Setup_ProcessingTime_Job_Operation[i].ProcessingTime < minProcessing_SetupTime)
+                {
+                    minProcessing_SetupTime = Setup_ProcessingTime_Job_Operation[i].ProcessingTime;
+                    results.Clear();
+                    results.Add(Setup_ProcessingTime_Job_Operation[i]);
+                }
+                else if (Setup_ProcessingTime_Job_Operation[i].ProcessingTime == minProcessing_SetupTime)
+                {
+                    results.Add(Setup_ProcessingTime_Job_Operation[i]);
+                }
+            }
+            return results;
+        }
+
 
         public int IndexOfMin_Available(List<Processing> self)
         {
@@ -509,19 +595,21 @@ namespace TestingScheduling
                 throw new ArgumentException("List is empty.", "self");
             }
 
-            var target_machine = environmentSetting.MachineTypes.FirstOrDefault(x=>x.MachineTypeIndex == self[0].MachineTypeIndex);
-            double min = target_machine.AvailableTime;
+            MachineType target_machine;
+            double min = 0;
+            //var target_machine = environmentSetting.MachineTypes.FirstOrDefault(x=>x.MachineTypeIndex == self[0].MachineTypeIndex);
+            //double min = target_machine.AvailableTime;
             int minIndex = 0;
-            for (int i = 1; i < self.Count; i++)
+            for (int i = 0; i < self.Count; i++)
             {
                 target_machine = environmentSetting.MachineTypes.FirstOrDefault(x => x.MachineTypeIndex == self[i].MachineTypeIndex);
-                if (target_machine.AvailableTime < min)
+                if (i == 0 || target_machine.AvailableTime < min)
                 {
                     min = target_machine.AvailableTime;
                     minIndex = i;
                 }
             }
-            return minIndex;
+            return self[minIndex].MachineTypeIndex;//改成回傳Machine type index
         }
 
         public List<Job_Operation_Index> OutputSchedule(List<Job_Operation_Index> UnrunningLots)

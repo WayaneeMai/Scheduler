@@ -529,7 +529,7 @@ namespace TestingScheduling
         /// <param name="CurrentTime"></param>
         public void GenerateMachineType(List<Resource> MachineLists, List<Job_Operation_Index> UnrunningLots, List<Job_Operation_Index> RunningLots,
             Scheduler Scheduled, JobAndOperation LotInformation, DateTime CurrentTime,Accessory Accessory)//同時增加機台可作業的工件與作業標號
-        {
+        {   
             SetTesterAndHandlerIndex(RunningLots, MachineLists, Scheduled, LotInformation,CurrentTime);//set the index to all available tester and handler         
             RemoveNotAvailableTesterMachine();// Remove the tester which is not going to use and assign resource index to eligible tester sets.         
             SetEligibleHandler(UnrunningLots,Accessory);// set eligible handler                  
@@ -570,7 +570,7 @@ namespace TestingScheduling
         }
 
         public void Set_Available_MachineType_Job_Operation()
-        {            
+        {     
             foreach(Resource handler in eligibleHandlers)
             {
                 List<Resource> target_eligibleTesters = eligibleTesters.Where(eligibleTester => eligibleTester.WorkOrderNumber == handler.WorkOrderNumber 
