@@ -11,13 +11,13 @@ namespace TestingScheduling
         static void Main(string[] args)
         {
             //Step 1.Parameter Setting
-            int MAX_ITERIATION = 1;//原始參數100
+            int MAX_ITERIATION = 100;//原始參數100
             int POPULATION_RANDOM = 0;
-            int POPULATION_HEURISTICS = 150;
+            int POPULATION_HEURISTICS = 50;
             double CROSSOVER_RATE = 90;
             double MUTATION_RATE = 50;
             double STOP_CRITERIA_RATIO = 0.01;
-            int NOT_IMPROVEMENT_TIMES = 10;
+            int NOT_IMPROVEMENT_TIMES = 5;
             List<string> SCHEDULE_CUSTOMER_CODE=new List<string>() { "IA9" };//schedule any operation meet customer code
             GeneticSetting.ObjectiveFunction objectiveFunction = GeneticSetting.ObjectiveFunction.TotalWeightedTardiness;//objective function
             Chromosome.Data.currentTime = new DateTime(2023, 03, 07, 10, 00, 00);//schedule start time

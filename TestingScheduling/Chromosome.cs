@@ -147,7 +147,6 @@ namespace TestingScheduling
         {         
             List<Job_Operation_Index> last_job_operation = new List<Job_Operation_Index>();//machine m's last operation
             last_job_operation = Copy.DeepClone(Chromosome.Data.Machine_Status_RunningLots);
-
             for (int i = 0; i < sequence_operation.Length; i++)//to get the gene from operation permutation vector
             {
                 int selectedJob = sequence_operation[i];//scheduled job and operation
@@ -171,12 +170,15 @@ namespace TestingScheduling
                 double machineAvailableTime = Math.Max(available_tester.AvailableTime, available_handler.AvailableTime);//available time of machine will be maximun value of tester and handler available time.
 
                 //to get required accessory of job and operation
-                var require_accessory = Chromosome.Data.Require_accessory_ik.Where(demand_acc => demand_acc.JobIndex == selectedJob && demand_acc.OperationIndex == selectedOperation).ToList();
+                //var require_accessory = Chromosome.Data.Require_accessory_ik.Where(demand_acc => demand_acc.JobIndex == selectedJob && demand_acc.OperationIndex == selectedOperation).ToList();
+                var require_accessory = Chromosome.Data.Require_accessory_ik.Where(demand_acc => demand_acc.JobIndex == selectedJob && demand_acc.OperationIndex == selectedOperation);
                 List<AvailableAccessory> assignment_resource = new List<AvailableAccessory>();
                 double available_time_accessory;
 
                 //to assign accessory to operation
-                assignment_resource = AssignAccessory(require_accessory, machineAvailableTime);
+                
+                //assignment_resource = AssignAccessory(require_accessory, machineAvailableTime);
+                assignment_resource=AssignAccessory_validate(require_accessory, machineAvailableTime);//validate only 0319
                 available_time_accessory = assignment_resource.Max(accessory => accessory.Time);//earlist available time of accessory
 
                 //define complement time of previous operation of same job
@@ -221,6 +223,7 @@ namespace TestingScheduling
                 //Add to the scheduled sets once scheduled
                 scheduled_Job.Add(selectedJob);
             }
+            
             //tardiness=Max(completion time-due time,0)
             //total weighted of tardiness=total weight of tardiness + weight*tardiness
             double weightedTardiness = 0;
@@ -269,12 +272,19 @@ namespace TestingScheduling
 
         public void UpdateStatusOfResource(int Machine_Index,int SelectedTester, int SelectedHandler,double FinishTime,List<AvailableAccessory> Assignment_Accessories)
         {
-            var index_tester = environmentSetting.Testers_availablity.FindIndex(tester => tester.ResourceIndex == SelectedTester);
-            environmentSetting.Testers_availablity[index_tester].AvailableTime = FinishTime;//update available time of tester  
-            environmentSetting.Testers_availablity[index_tester].MachineTypeIndex = Machine_Index;//定義目前測試機所屬的機器組合編號
-            var index_handler = environmentSetting.Handlers_availablity.FindIndex(handler => handler.ResourceIndex == SelectedHandler);
-            environmentSetting.Handlers_availablity[index_handler].AvailableTime = FinishTime;
-            environmentSetting.Handlers_availablity[index_handler].MachineTypeIndex = Machine_Index;
+            //var index_tester = environmentSetting.Testers_availablity.FindIndex(tester => tester.ResourceIndex == SelectedTester);
+            //environmentSetting.Testers_availablity[index_tester].AvailableTime = FinishTime;//update available time of tester  
+            //environmentSetting.Testers_availablity[index_tester].MachineTypeIndex = Machine_Index;//定義目前測試機所屬的機器組合編號
+            //var index_handler = environmentSetting.Handlers_availablity.FindIndex(handler => handler.ResourceIndex == SelectedHandler);
+            //environmentSetting.Handlers_availablity[index_handler].AvailableTime = FinishTime;
+            //environmentSetting.Handlers_availablity[index_handler].MachineTypeIndex = Machine_Index;
+            var target_tester = environmentSetting.Testers_availablity.FirstOrDefault(tester => tester.ResourceIndex == SelectedTester);
+            target_tester.AvailableTime = FinishTime;
+            target_tester.MachineTypeIndex = Machine_Index;
+            var target_handler = environmentSetting.Handlers_availablity.FirstOrDefault(handler => handler.ResourceIndex == SelectedHandler);
+            target_handler.AvailableTime = FinishTime;
+            target_handler.MachineTypeIndex = Machine_Index;
+            
 
             //增加尋找目前所有可用的機器組合
             var machines = environmentSetting.MachineTypes.Where(machine => machine.TesterIndex == SelectedTester || machine.HandlerIndex == SelectedHandler);
@@ -297,9 +307,45 @@ namespace TestingScheduling
             }
         }
 
-        public List<AvailableAccessory> AssignAccessory(List<Resource> Require_Accessory,double MachineAvailableTime)
+        public List<AvailableAccessory> AssignAccessory_validate(IEnumerable<Resource> Require_Accessory, double MachineAvailableTime)
         {
             List<AvailableAccessory> assignment_accessory = new List<AvailableAccessory>();
+            foreach (Resource require_accessory in Require_Accessory)
+            {
+                List<AvailableAccessory> candidate_accessories = environmentSetting.AvailableQuantity_accessory.
+                    Where(available_accessory => available_accessory.Accessory_Type_Index == require_accessory.ResourceIndex).ToList();
+                var secondary_accessories_available = Chromosome.Data.SecondaryAccessoryRelation.FirstOrDefault(substitute => substitute.PrimaryResourceIndex == require_accessory.ResourceIndex);
+                if (secondary_accessories_available != null)
+                {
+                    IEnumerable<AvailableAccessory> secondary_accessories = environmentSetting.AvailableQuantity_accessory.Where(available_accessory =>
+                     available_accessory.Accessory_Type_Index == secondary_accessories_available.SecondardResourceIndex);
+                    candidate_accessories.AddRange(secondary_accessories);
+                }
+
+                foreach (AvailableAccessory available_accessory in candidate_accessories)
+                {
+                    available_accessory.WaitingTime = Math.Abs(MachineAvailableTime - available_accessory.Time);
+                    //進行排序
+                }
+                candidate_accessories = candidate_accessories.OrderBy(x => x.WaitingTime).ToList();
+
+                //to assign accessory until its quantity meet the requirement.
+                for (int k = 0; k < require_accessory.RequireQuantity; k++)
+                {
+                    assignment_accessory.Add(new AvailableAccessory()//Assign resource to job and operation
+                    {
+                        Accessory_Type_Index = candidate_accessories[k].Accessory_Type_Index,
+                        AvailableAccessoryIndex = candidate_accessories[k].AvailableAccessoryIndex,
+                        Time = candidate_accessories[k].Time
+                    });
+                }
+            }
+            return assignment_accessory;
+        }
+
+        public List<AvailableAccessory> AssignAccessory(List<Resource> Require_Accessory,double MachineAvailableTime)
+        {
+            List<AvailableAccessory> assignment_accessory = new List<AvailableAccessory>();           
             while (Require_Accessory.Count() != 0)
             {
                 List<AvailableAccessory> candidate_accessory = new List<AvailableAccessory>();            
@@ -466,9 +512,26 @@ namespace TestingScheduling
                     CompletionTime = completionTime
                 });
             }
-            target_earlist_completion = target_earlist_completion.OrderBy(x => x.CompletionTime).ToList();
-            return target_earlist_completion[0].MachineTypeIndex;
+            //target_earlist_completion = target_earlist_completion.OrderBy(x => x.CompletionTime).ToList();
+            //return target_earlist_completion[0].MachineTypeIndex;
+            return GetMinEarlistCompletionMachine(target_earlist_completion);
         }
+
+        public int GetMinEarlistCompletionMachine(List<Processing> Machines)
+        {
+            double minCompletionTime=Machines[0].CompletionTime;
+            int selectedMachine = Machines[0].MachineTypeIndex;
+            for (int i = 1; i < Machines.Count(); i++)
+            {
+                if (minCompletionTime > Machines[i].CompletionTime)
+                {
+                    minCompletionTime = Machines[i].CompletionTime;
+                    selectedMachine = Machines[i].MachineTypeIndex;
+                }
+            }
+            return selectedMachine;
+        }
+
 
         public int SelectionRule_ShortestProcessingTime(int Job, int Operation)
         {
@@ -480,7 +543,6 @@ namespace TestingScheduling
             */
             List<Processing> target_machines = new List<Processing>();
             target_machines = Get_Shortest_Processing_Time_Machines(Job, Operation);
-        
             return IndexOfMin_Available(target_machines);
         }
 

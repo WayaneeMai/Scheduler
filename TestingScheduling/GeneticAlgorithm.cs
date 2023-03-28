@@ -138,14 +138,19 @@ namespace TestingScheduling
 
                     if (random.Next(1, 100) <= geneticSetting.crossover_probability)//crossover to generate offspring
                     {
-                        List<Chromosome> childs=new List<Chromosome>(Crossover(mother,father));
-                        child1 =Copy.DeepClone(childs[0]);
-                        child2 = Copy.DeepClone(childs[1]);
+                        List<Chromosome> childs=new List<Chromosome>();
+                        childs = Crossover(mother, father);
+                        child1 = childs[0];
+                        child2= childs[1];
+                        //child1 =Copy.DeepClone(childs[0]);
+                        //child2 = Copy.DeepClone(childs[1]);
                     }
                     else
                     {
-                        child1 = Copy.DeepClone(mother);
-                        child2 = Copy.DeepClone(father);
+                        child1=mother;
+                        child2 = father;
+                        //child1 = Copy.DeepClone(mother);
+                        //child2 = Copy.DeepClone(father);
                     }
 
                     if (random.Next(1, 100) <= geneticSetting.mutation_probability)
