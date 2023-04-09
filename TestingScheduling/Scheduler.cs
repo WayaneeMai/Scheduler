@@ -404,32 +404,23 @@ namespace TestingScheduling
                     int handlerIndex = Machines.Get_Resource_Index_By_Machine_Index(Machine.Machine_Type.Handler, machineTypeIndex);
                     string testerType = Machines.Get_Resource_Name_By_Resource_Index(EligibleTesters, testerIndex).Substring(0, 3);//getTesterTypeName
                     string handlerType = Machines.Get_Resource_Name_By_Resource_Index(EligibleHandlers, handlerIndex).Substring(0, 3);//getHandlerTypeName
-                    if (LotInformation.GetSetupTime(ValidateLot.CustomerCode, deviceName, ValidateLot.Package, testerType, handlerType) < 0 
-                        && LotInformation.GetUPH(partNumber, ValidateLot.FTStep, testerType, handlerType) < 0)//if missing setup and uph data
-                    {
-                        Machines.Remove_Machine_Type_of_Job_Operation(ValidateLot.WorkOrderNumber, ValidateLot.FTStep, machineTypeIndex);
-                        missing_handlerType = handlerType;
-                        missing_testerType = testerType;
-                    }
-                    else if(LotInformation.GetSetupTime(ValidateLot.CustomerCode, deviceName, ValidateLot.Package, testerType, handlerType) < 0)//if missing setup data
-                    {
-                        Machines.Remove_Machine_Type_of_Job_Operation(ValidateLot.WorkOrderNumber, ValidateLot.FTStep, machineTypeIndex);
-                        uphDataFound = uphDataFound + 1;
-                        missing_handlerType = handlerType;
-                        missing_testerType = testerType;
-                    }
-                    else if(LotInformation.GetUPH(partNumber, ValidateLot.FTStep, testerType, handlerType) < 0)//if missing uph data
-                    {
-                        Machines.Remove_Machine_Type_of_Job_Operation(ValidateLot.WorkOrderNumber, ValidateLot.FTStep, machineTypeIndex);
-                        setupDataFound = setupDataFound + 1;
-                        missing_handlerType = handlerType;
-                        missing_testerType = testerType;
-                    }
-                    else//not missing uph or setup data
+                    double setupTime = LotInformation.GetSetupTime(ValidateLot.CustomerCode, deviceName, ValidateLot.Package, testerType, handlerType);
+                    double processingTime = LotInformation.GetUPH(partNumber, ValidateLot.FTStep, testerType, handlerType);
+                    if (setupTime > 0 && processingTime > 0)
                     {
                         setupDataFound = setupDataFound + 1;
-                        uphDataFound = uphDataFound + 1;
+                        uphDataFound=uphDataFound + 1;
                     }
+                    else
+                    {
+                        Machines.Remove_Machine_Type_of_Job_Operation(ValidateLot.WorkOrderNumber, ValidateLot.FTStep, machineTypeIndex);
+                        missing_handlerType = handlerType;
+                        missing_testerType = testerType;
+                        if (processingTime < 0 && setupTime > 0)
+                        {
+                            setupDataFound = setupDataFound + 1;
+                        }
+                    }                   
                 }
                 Output_Validate_Result(setupDataFound, uphDataFound, missing_handlerType, missing_testerType, ValidateLot);
             }
@@ -442,9 +433,9 @@ namespace TestingScheduling
             {
                 RemoveLotFromUnschedule(ValidateLot.WorkOrderNumber, ValidateLot.FTStep);//remove the mo from unrunning lot
                 if (Missing_handlerType == "NA" || Missing_testerType == "NA")
-                    ValidateLot.CurrentStatus = "Maintain UPH and setup time";
+                    ValidateLot.CurrentStatus = "Maintain setup time/ UPH and setup time";
                 else
-                    ValidateLot.CurrentStatus = "Maintain UPH and setup time for tester type " + Missing_testerType + " and handler type " + Missing_handlerType;
+                    ValidateLot.CurrentStatus = "Maintain setup time/ UPH and setup time for tester type " + Missing_testerType + " and handler type " + Missing_handlerType;
                 SetSchedule(ValidateLot);//set the lot in runningLots sets and mark with notes
             }
             else if (SetupDataFoundCount < 1 && UphDataFoundCount > 0)
